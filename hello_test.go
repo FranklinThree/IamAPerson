@@ -1,5 +1,4 @@
-package goProject01
-
+package IamAPerson
 import (
 	"testing"
 )

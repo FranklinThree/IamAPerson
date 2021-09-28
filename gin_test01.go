@@ -1,4 +1,4 @@
-package goProject01
+package IamAPerson
 
 import (
 	"github.com/gin-gonic/gin"

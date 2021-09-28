@@ -1,4 +1,4 @@
-package goProject01
+package IamAPerson
 
 import "rsc.io/quote"
 
