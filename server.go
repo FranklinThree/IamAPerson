@@ -1,11 +1,13 @@
 package IamAPerson
 
 import (
-	"database/sql"
+	//"database/sql"
+	"errors"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"net/http"
 	"strconv"
+	//"fmt"
 )
 
 type Server struct {
@@ -14,8 +16,7 @@ type Server struct {
 func (server *Server) Start() (err error) {
 	router := gin.Default()
 	var fdb FaceDataBase
-	fdb.database, err = sql.Open("mysql", "root:333333@(127.0.0.1:3306)/facedata?charset=utf8")
-
+	err = fdb.Start("mysql", "root:333333@(127.0.0.1:3306)/facedata?charset=utf8")
 	CheckErr(err)
 	defer fdb.database.Close()
 	router.POST("/upload/example", func(c *gin.Context) {
@@ -33,8 +34,8 @@ func (server *Server) Start() (err error) {
 
 		example.itsName, _ = c.GetPostForm("itsName")
 
-		departmentName, _ := c.GetPostForm("departmentName")
-		example.departmentNO, err = fdb.getDepartmentNO(departmentName)
+		departmentNO, _ := c.GetPostForm("departmentNO")
+		example.departmentNO, err = strconv.Atoi(departmentNO)
 		CheckErr(err)
 
 		studentNumber, _ := c.GetPostForm("studentNumber")
@@ -73,19 +74,23 @@ func (server *Server) Start() (err error) {
 			"data": gin.H{
 				"picture": sample.picture,
 				"truth":   sample.theTrue,
-				"A":       sample.choices[0],
-				"B":       sample.choices[1],
-				"C":       sample.choices[2],
-				"D":       sample.choices[3],
+				"A":       sample.choices[0].sentence,
+				"B":       sample.choices[1].sentence,
+				"C":       sample.choices[2].sentence,
+				"D":       sample.choices[3].sentence,
 			},
 			"redirect": "",
 		})
 	})
 	router.GET("/download/person", func(c *gin.Context) {
 
-		//
-		example, err := fdb.getExample(1)
+		uid, err := strconv.Atoi(c.Query("UID"))
 		CheckErr(err)
+		example, err := fdb.getExample(uid, true)
+		if !CheckErr(err) {
+			panic(errors.New("找不到UID目标:" + strconv.Itoa(uid)))
+			return
+		}
 		departmentName, err := fdb.getDepartmentName(example.departmentNO)
 		CheckErr(err)
 		c.JSON(http.StatusOK, gin.H{

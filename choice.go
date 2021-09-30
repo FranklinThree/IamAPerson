@@ -1,12 +1,5 @@
 package IamAPerson
 
-const (
-	ItsName        = 1
-	DepartmentName = 2
-	UID            = 3
-	StudentNumber  = 4
-)
-
 type Choice struct {
 	sentence string
 	/**

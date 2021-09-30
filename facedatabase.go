@@ -41,17 +41,17 @@ func (fdb *FaceDataBase) maintain() (err error) {
 	personCountQuery, err := fdb.database.Query("SELECT count(UID) FROM person")
 	CheckErr(err)
 
-	for personCountQuery.Next() {
-		fdb.PersonCapacity++
-	}
+	personCountQuery.Next()
+	personCountQuery.Scan(&fdb.PersonCapacity)
+
 	fmt.Println("数据库人实例总数抽取成功：" + strconv.Itoa(fdb.PersonCapacity))
 	//统计部门规模
 	DepartmentCountQuery, err := fdb.database.Query("SELECT count(departmentNO) FROM department")
 	CheckErr(err)
 
-	for DepartmentCountQuery.Next() {
-		fdb.DepartmentCapacity++
-	}
+	DepartmentCountQuery.Next()
+	DepartmentCountQuery.Scan(&fdb.DepartmentCapacity)
+
 	fmt.Println("数据库部门总数抽取成功：" + strconv.Itoa(fdb.DepartmentCapacity))
 	defer func() {
 		err = personCountQuery.Close()
@@ -78,71 +78,53 @@ func (fdb *FaceDataBase) addExample(example Example) (err error) {
 }
 
 // getExample 取得指定实例
-func (fdb *FaceDataBase) getExample(UID int) (example Example, err error) {
-	//查询人脸数据表picture
-	personQuery, err := fdb.database.Query("SELECT itsName,picture,departmentNO,studentNumber FROM person WHERE UID=?")
-	CheckErr(err)
+func (fdb *FaceDataBase) getExample(UID int, havePicture bool) (example Example, err error) {
 
-	defer func() {
-		err = personQuery.Close()
-		CheckErr(err)
-	}()
+	example.UID = UID
+	if havePicture {
 
-	//查找 UID 所对应的人脸实例
-	for personQuery.Next() {
-		err = personQuery.Scan(1, &example.itsName, &example.picture, &example.departmentNO, &example.studentNumber)
+		//查询人脸数据表picture
+		personQuery, err := fdb.database.Query("SELECT itsName,picture,departmentNO,studentNumber FROM person WHERE UID=" + strconv.Itoa(UID))
 		CheckErr(err)
+
+		defer func() {
+			err = personQuery.Close()
+			CheckErr(err)
+		}()
+
+		//查找 UID 所对应的人脸实例
+		personQuery.Next()
+		err = personQuery.Scan(&example.itsName, &example.picture, &example.departmentNO, &example.studentNumber)
+		CheckErr(err)
+
+	} else {
+		//查询人脸数据表picture
+		personQuery, err := fdb.database.Query("SELECT itsName,departmentNO,studentNumber FROM person WHERE UID=" + strconv.Itoa(UID))
+		CheckErr(err)
+
+		defer func() {
+			err = personQuery.Close()
+			CheckErr(err)
+		}()
+
+		//查找 UID 所对应的人脸实例
+		personQuery.Next()
+		err = personQuery.Scan(&example.itsName, &example.departmentNO, &example.studentNumber)
+		CheckErr(err)
+
 	}
-	return example, err
+	return
 }
 
-func (fdb *FaceDataBase) getPictureExample(UID int) (example Example, err error) {
-	//查询人脸数据表picture
-	personQuery, err := fdb.database.Query("SELECT itsName,picture,departmentNO,studentNumber FROM person WHERE havepicture = true and UID=? ")
-	CheckErr(err)
-
-	defer func() {
-		err = personQuery.Close()
-		CheckErr(err)
-	}()
-
-	//查找 UID 所对应的人脸实例
-	for personQuery.Next() {
-		err = personQuery.Scan(1, &example.itsName, &example.picture, &example.departmentNO, &example.studentNumber)
-		CheckErr(err)
-	}
-	return example, err
-}
-
-// getNoPictureExample 获取没有图片文件的人实例
-func (fdb *FaceDataBase) getExampleWithoutPicture(UID int) (example Example, err error) {
-	//查询人脸数据表picture
-	personQuery, err := fdb.database.Query("SELECT itsName,departmentNO,studentNumber FROM person WHERE UID=?")
-	CheckErr(err)
-
-	defer func() {
-		err = personQuery.Close()
-		CheckErr(err)
-	}()
-
-	//查找 UID 所对应的人脸实例
-	for personQuery.Next() {
-		err = personQuery.Scan(1, &example.itsName, &example.departmentNO, &example.studentNumber)
-		CheckErr(err)
-	}
-	return example, err
-}
-
-//func (fdb *FaceDataBase) getExample(itsName string)
-
+// getUID 找到名字所对应的UID
 func (fdb *FaceDataBase) getUID(itsName string) (UID int, err error) {
-	PersonQuery, err := fdb.database.Query("SELECT UID FROM person WHERE itsName LIKE ?")
+	PersonQuery, err := fdb.database.Query("SELECT UID FROM person WHERE itsName LIKE " + itsName)
 	UID = 0
 	for PersonQuery.Next() {
 		if UID != 0 {
 			return 0, errors.New("有多个数据与该姓名匹配：" + itsName)
 		}
-		err = PersonQuery.Scan(itsName, &UID)
+		err = PersonQuery.Scan(&UID)
 		CheckErr(err)
 	}
 	return UID, err
@@ -181,13 +163,21 @@ func (fdb *FaceDataBase) checkDepartment(departmentNO int) (err error) {
 		}
 	}
 	return errors.New("未找到对应的部门:" + strconv.Itoa(departmentNO))
+}
 
+//	checkHavePicture 检查此人是否有图片
+func (fdb *FaceDataBase) checkHavePicture(UID int) (have bool, err error) {
+	PersonQuery, err := fdb.database.Query("SELECT havePicture FROM person WHERE UID=" + strconv.Itoa(UID))
+	CheckErr(err)
+	PersonQuery.Next()
+	PersonQuery.Scan(&have)
+	return
 }
 
 // getDepartmentName 从部门编号转换为部门名称
 func (fdb *FaceDataBase) getDepartmentName(departmentNO int) (departmentName string, err error) {
 
-	DepartmentQuery, err := fdb.database.Query("SELECT departmentName FROM department WHERE departmentNO = ?")
+	DepartmentQuery, err := fdb.database.Query("SELECT departmentName FROM department WHERE departmentNO =" + strconv.Itoa(departmentNO))
 	CheckErr(err)
 
 	defer func() {
@@ -195,7 +185,7 @@ func (fdb *FaceDataBase) getDepartmentName(departmentNO int) (departmentName str
 		CheckErr(err)
 	}()
 	for DepartmentQuery.Next() {
-		err = DepartmentQuery.Scan(departmentNO, &departmentName)
+		err = DepartmentQuery.Scan(&departmentName)
 		CheckErr(err)
 	}
 
@@ -205,7 +195,7 @@ func (fdb *FaceDataBase) getDepartmentName(departmentNO int) (departmentName str
 // getDepartmentNO 从部门名称转换为部门编号
 func (fdb *FaceDataBase) getDepartmentNO(departmentName string) (departmentNO int, err error) {
 	DepartmentQuery, err := fdb.database.Query("SELECT departmentID FROM department " +
-		"WHERE departmentName LIKE %" + departmentName + "% OR " + departmentName + " LIKE %departmentName%")
+		"WHERE (departmentName LIKE %" + departmentName + "%) OR (" + departmentName + " LIKE %departmentName%)")
 	if !CheckErr(err) {
 		return 0, errors.New("department数据库初始化失败：")
 	}
@@ -235,19 +225,30 @@ func (fdb *FaceDataBase) getSample() (sample Sample, err error) {
 	var examples [4]Example
 
 	//取得图片的实例
-	example, err := fdb.getPictureExample(rand.Intn(fdb.PersonCapacity-1) + 1)
+	//不安全的一个随机数
+	var have bool
+getUID:
+	uid := rand.Intn(fdb.PersonCapacity-1) + 1
+	if have, err = fdb.checkHavePicture(uid); !have || err != nil {
+		goto getUID
+	}
+	//fmt.Println(have,uid)
+
+	example, err := fdb.getExample(uid, true)
 	trueDepartmentName, err := fdb.getDepartmentName(example.departmentNO)
 	CheckErr(err)
+
+	//fmt.Println("Example:",example)
 
 	//先定义四个错误选项
 	departmentNameTemp, err := fdb.getDepartmentName((example.departmentNO+rand.Intn(fdb.DepartmentCapacity)-1)%fdb.DepartmentCapacity + 1)
 	choices[0] = Choice{
 		departmentNameTemp,
-		DepartmentName,
+		DepartmentNO,
 		false,
 	}
 	for i := 0; i < 4; i++ {
-		examples[i], err = fdb.getExampleWithoutPicture((example.UID+rand.Intn(fdb.PersonCapacity-1))%fdb.PersonCapacity + 1)
+		examples[i], err = fdb.getExample((example.UID+rand.Intn(fdb.PersonCapacity-1))%fdb.PersonCapacity+1, false)
 
 	}
 	choices[1] = Choice{
@@ -304,4 +305,16 @@ func (fdb *FaceDataBase) getSample() (sample Sample, err error) {
 	sample.picture = &example.picture
 
 	return sample, nil
+}
+
+func (fdb *FaceDataBase) deleteExample(UID int) (err error) {
+	PersonDelete, err := fdb.database.Prepare("DELETE FROM person WHERE UID = ?")
+	_, err = PersonDelete.Exec(UID)
+	return err
+}
+func (fdb *FaceDataBase) updateExample(UID int, target int, value interface{}) (err error) {
+	PersonUpdate, err := fdb.database.Prepare("UPDATE person SET " + TypetoString(target) + " WHERE" + strconv.Itoa(UID))
+	_, err = PersonUpdate.Exec()
+	CheckErr(err)
+	return
 }
