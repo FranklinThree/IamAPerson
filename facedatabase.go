@@ -310,6 +310,7 @@ getUID:
 func (fdb *FaceDataBase) deleteExample(UID int) (err error) {
 	PersonDelete, err := fdb.database.Prepare("DELETE FROM person WHERE UID = ?")
 	_, err = PersonDelete.Exec(UID)
+	fdb.PersonCapacity--
 	return err
 }
 func (fdb *FaceDataBase) updateExample(UID int, target int, value interface{}) (err error) {
