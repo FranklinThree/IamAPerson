@@ -25,46 +25,29 @@ func (server *Server) Start() (err error) {
 			c.String(http.StatusBadRequest, "上传格式错误,step 1：找不到 picture")
 			return
 		}
-		itsNameFile, err := c.FormFile("itsName")
-		if !CheckErr(err) {
-			c.String(http.StatusBadRequest, "上传格式错误,step 2：找不到 itsName")
-			return
-		}
-		DepartmentNameFile, err := c.FormFile("departmentName")
-		if !CheckErr(err) {
-			c.String(http.StatusBadRequest, "上传格式错误,step 3：找不到 departmentName")
-			return
-		}
-		studentNumberFile, err := c.FormFile("studentNumber")
-		if !CheckErr(err) {
-			c.String(http.StatusBadRequest, "上传格式错误,step 4：找不到 studentNumber")
-			return
-		}
-
-		pictureFileHeader, err := pictureFile.Open()
-		CheckErr(err)
-		itsNameFileHeader, err := itsNameFile.Open()
-		CheckErr(err)
-		DepartmentNameFileHeader, err := DepartmentNameFile.Open()
-		CheckErr(err)
-		studentNumberFileHeader, err := studentNumberFile.Open()
-		CheckErr(err)
-
-		defer func() {
-			err = pictureFileHeader.Close()
-			CheckErr(err)
-			err = itsNameFileHeader.Close()
-			CheckErr(err)
-			err = DepartmentNameFileHeader.Close()
-			CheckErr(err)
-			err = studentNumberFileHeader.Close()
-			CheckErr(err)
-		}()
 
 		//上传初始化
 		var readLength int
 		var example Example
 		buffer := make([]byte, 1024*1024)
+
+		example.itsName, _ = c.GetPostForm("itsName")
+
+		departmentName, _ := c.GetPostForm("departmentName")
+		example.departmentNO, err = fdb.getDepartmentNO(departmentName)
+		CheckErr(err)
+
+		studentNumber, _ := c.GetPostForm("studentNumber")
+		example.studentNumber, err = strconv.Atoi(studentNumber)
+		CheckErr(err)
+
+		pictureFileHeader, err := pictureFile.Open()
+		CheckErr(err)
+
+		defer func() {
+			err = pictureFileHeader.Close()
+			CheckErr(err)
+		}()
 
 		//读取图片数据
 		for {
@@ -74,19 +57,6 @@ func (server *Server) Start() (err error) {
 			}
 			example.picture = append(buffer[:readLength])
 		}
-
-		//读取名字
-		readLength, err = itsNameFileHeader.Read(buffer)
-		example.itsName = string(buffer[:readLength])
-
-		//读取部门名并转化为ID
-		readLength, err = DepartmentNameFileHeader.Read(buffer)
-		departmentName := string(buffer[:readLength])
-		example.departmentNO, err = fdb.getDepartmentNO(departmentName)
-
-		//读取学号
-		readLength, err = studentNumberFileHeader.Read(buffer)
-		example.studentNumber, err = strconv.Atoi(string(buffer))
 
 		//储存实例
 		err = fdb.addExample(example)
