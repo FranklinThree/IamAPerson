@@ -1,5 +1,5 @@
-github.com/FranklinThree/IamAPerson v0.0.0-20210930112344-32ab60b86c93 h1:A2UEpesZvzk0ZDwQ0QjCDjrTbFnc7EV7ZPc4qNTnEJE=
-github.com/FranklinThree/IamAPerson v0.0.0-20210930112344-32ab60b86c93/go.mod h1:qTDkAGbnUfn1xm6Bp5k/A5RpRYMTemmK+FJWduMtrGo=
+github.com/FranklinThree/IamAPerson v0.5.4 h1:PFMJuH07+5d1VN9mH608aEGIfa8EwdpGQparnmzeK6I=
+github.com/FranklinThree/IamAPerson v0.5.4/go.mod h1:qTDkAGbnUfn1xm6Bp5k/A5RpRYMTemmK+FJWduMtrGo=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

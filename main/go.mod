@@ -2,7 +2,7 @@ module main
 
 go 1.17
 
-require github.com/FranklinThree/IamAPerson v0.0.0-20210930112344-32ab60b86c93
+require github.com/FranklinThree/IamAPerson v0.5.4
 
 require (
 	github.com/gin-contrib/sse v0.1.0 // indirect

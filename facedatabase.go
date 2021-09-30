@@ -307,12 +307,15 @@ getUID:
 	return sample, nil
 }
 
+// deleteExample 删除实例
 func (fdb *FaceDataBase) deleteExample(UID int) (err error) {
 	PersonDelete, err := fdb.database.Prepare("DELETE FROM person WHERE UID = ?")
 	_, err = PersonDelete.Exec(UID)
 	fdb.PersonCapacity--
 	return err
 }
+
+// updateExample 更新实例
 func (fdb *FaceDataBase) updateExample(UID int, target int, value interface{}) (err error) {
 	PersonUpdate, err := fdb.database.Prepare("UPDATE person SET " + TypetoString(target) + " WHERE" + strconv.Itoa(UID))
 	_, err = PersonUpdate.Exec()
