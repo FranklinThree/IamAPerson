@@ -95,7 +95,21 @@ func (server *Server) Start() (err error) {
 	})
 
 	router.GET("/download/sample", func(c *gin.Context) {
-
+		sample, err := fdb.getSample()
+		CheckErr(err)
+		c.JSON(http.StatusOK, gin.H{
+			"error": 0,
+			"msg":   "success",
+			"data": gin.H{
+				"picture": sample.picture,
+				"truth":   sample.theTrue,
+				"A":       sample.choices[0],
+				"B":       sample.choices[1],
+				"C":       sample.choices[2],
+				"D":       sample.choices[3],
+			},
+			"redirect": "",
+		})
 	})
 	router.GET("/download/person", func(c *gin.Context) {
 
@@ -116,6 +130,7 @@ func (server *Server) Start() (err error) {
 			},
 			"redirect": "",
 		})
+		c.String(http.StatusOK, "拉取信息成功")
 	})
 	router.Run()
 	return err
