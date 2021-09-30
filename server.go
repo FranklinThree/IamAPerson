@@ -11,7 +11,7 @@ import (
 type Server struct {
 }
 
-func (server *Server) start() (err error) {
+func (server *Server) Start() (err error) {
 	router := gin.Default()
 	var fdb FaceDataBase
 	fdb.database, err = sql.Open("mysql", "root:333333@(127.0.0.1:3306)/facedata?charset=utf8")
