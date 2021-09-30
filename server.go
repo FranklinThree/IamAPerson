@@ -8,10 +8,12 @@ import (
 	"strconv"
 )
 
-func main() {
+type Server struct {
+}
+
+func (server *Server) start() (err error) {
 	router := gin.Default()
 	var fdb FaceDataBase
-	var err error
 	fdb.database, err = sql.Open("mysql", "root:333333@(127.0.0.1:3306)/facedata?charset=utf8")
 
 	CheckErr(err)
@@ -116,4 +118,5 @@ func main() {
 		})
 	})
 	router.Run()
+	return err
 }
