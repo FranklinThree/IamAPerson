@@ -14,7 +14,11 @@ type Server struct {
 }
 
 func (server *Server) Start() (err error) {
-	router := gin.Default()
+	router := gin.New()
+	err = http.ListenAndServe("127.0.0.1:8080", router)
+	if !CheckErr(err) {
+		return errors.New("服务器初始化出错")
+	}
 	var fdb FaceDataBase
 	err = fdb.Start("mysql", "root:333333@(127.0.0.1:3306)/facedata?charset=utf8")
 	CheckErr(err)
