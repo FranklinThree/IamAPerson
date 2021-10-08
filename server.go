@@ -1,5 +1,6 @@
 package IamAPerson
 
+import "C"
 import (
 	//"database/sql"
 	"errors"
@@ -11,19 +12,33 @@ import (
 )
 
 type Server struct {
+	CheckConfig Config
+	StorageConfig Config
+	NetConfig Config
+
 }
 
 func (server *Server) Start() (err error) {
 	router := gin.New()
-	//err = http.ListenAndServe("127.0.0.1:8080", router)
-	//if !CheckErr(err) {
-	//	return errors.New("服务器初始化出错")
-	//}
-	var fdb FaceDataBase
-	err = fdb.Start("mysql", "root:333333@(127.0.0.1:3306)/facedata?charset=utf8")
-	CheckErr(err)
-	defer fdb.database.Close()
-	router.POST("/upload/example", func(c *gin.Context) {
+	var CheckDB FaceDataBase
+	var StorageDB FaceDataBase
+
+	err = StorageDB.StartByConfig(server.StorageConfig)
+	if ! CheckErr(err){
+		return errors.New("Storage数据库初始化错误，请检查配置文件："+server.StorageConfig.Path)
+	}
+
+	err = CheckDB.StartByConfig(server.CheckConfig)
+	if ! CheckErr(err){
+		return errors.New("Check数据库初始化错误，请检查配置文件："+server.CheckConfig.Path)
+
+	}
+	defer func(){
+		err = CheckDB.database.Close()
+		CheckErr(err)
+	}()
+
+	router.POST("/check/upload/example", func(c *gin.Context) {
 
 		pictureFile, err := c.FormFile("picture")
 		if !CheckErr(err) {
@@ -64,13 +79,13 @@ func (server *Server) Start() (err error) {
 		}
 
 		//储存实例
-		err = fdb.addExample(example)
+		err = CheckDB.addExample(example)
 		CheckErr(err)
 		c.String(http.StatusOK, "上传文件成功")
 	})
 
-	router.GET("/download/sample", func(c *gin.Context) {
-		sample, err := fdb.getSample()
+	router.GET("/check/download/sample", func(c *gin.Context) {
+		sample, err := CheckDB.getSample()
 		CheckErr(err)
 		c.JSON(http.StatusOK, gin.H{
 			"error": 0,
@@ -86,17 +101,69 @@ func (server *Server) Start() (err error) {
 			"redirect": "",
 		})
 	})
-	router.GET("/download/person", func(c *gin.Context) {
 
-		uid, err := strconv.Atoi(c.Query("UID"))
-		CheckErr(err)
-		example, err := fdb.getExample(uid, true)
+	router.POST("/storage/upload/person", func(c *gin.Context) {
+
+		pictureFile, err := c.FormFile("picture")
 		if !CheckErr(err) {
-			panic(errors.New("找不到UID目标:" + strconv.Itoa(uid)))
+			c.String(http.StatusBadRequest, "上传格式错误,step 1：找不到 picture")
 			return
 		}
-		departmentName, err := fdb.getDepartmentName(example.departmentNO)
+
+		//上传初始化
+		var readLength int
+		var example Example
+		buffer := make([]byte, 1024*1024)
+
+		example.itsName, _ = c.GetPostForm("itsName")
+
+		departmentNO, _ := c.GetPostForm("departmentNO")
+		example.departmentNO, err = strconv.Atoi(departmentNO)
 		CheckErr(err)
+
+		studentNumber, _ := c.GetPostForm("studentNumber")
+		example.studentNumber, err = strconv.Atoi(studentNumber)
+		CheckErr(err)
+
+		pictureFileHeader, err := pictureFile.Open()
+		CheckErr(err)
+
+		defer func() {
+			err = pictureFileHeader.Close()
+			CheckErr(err)
+		}()
+
+		//读取图片数据
+		for {
+			readLength, _ = pictureFileHeader.Read(buffer)
+			if readLength == 0 {
+				break
+			}
+			example.picture = append(buffer[:readLength])
+		}
+
+		//储存实例
+		err = StorageDB.addExample(example)
+		CheckErr(err)
+		c.String(http.StatusOK, "上传文件成功")
+	})
+
+	router.GET("/storage/download/person", func(c *gin.Context) {
+
+
+		itsName := c.Query("itsName")
+		uid,err := StorageDB.getUID(itsName)
+		CheckErr(err)
+		example, err := StorageDB.getExample(uid, true)
+		if !CheckErr(err) {
+			c.String(http.StatusBadRequest,"找不到UID目标:" + strconv.Itoa(uid))
+			return
+		}
+		departmentName, err := StorageDB.getDepartmentName(example.departmentNO)
+		if ! CheckErr(err){
+			c.String(http.StatusInternalServerError,"服务器内部错误：找不到部门！")
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"error": 0,
 			"msg":   "success",
@@ -111,6 +178,9 @@ func (server *Server) Start() (err error) {
 		})
 		c.String(http.StatusOK, "拉取信息成功")
 	})
-	router.Run("127.0.0.1:8080")
-	return err
+	err = router.Run(server.NetConfig.Map["ip"]+":"+server.NetConfig.Map["port"])
+	if ! CheckErr(err) {
+		return errors.New("服务器启动异常！")
+	}
+	return
 }

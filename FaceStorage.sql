@@ -1,5 +1,5 @@
-CREATE DATABASE facedata;
-USE facedata;
+CREATE DATABASE UserStorage;
+USE UserStorage;
 
 DROP TABLE IF EXISTS department;
 DROP TABLE IF EXISTS picture;
