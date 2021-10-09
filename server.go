@@ -157,7 +157,7 @@ func (server *Server) Start() (err error) {
 
 		//上传初始化
 		var readLength int
-		var example Example
+		var picture []byte
 		buffer := make([]byte, 1024*1024)
 
 		pictureFileHeader, err := pictureFile.Open()
@@ -174,13 +174,31 @@ func (server *Server) Start() (err error) {
 			if readLength == 0 {
 				break
 			}
-			example.picture = append(buffer[:readLength])
+			picture = append(buffer[:readLength])
 		}
 
-		//储存实例
-		err = StorageDB.addExample(example)
-		CheckErr(err)
-		c.String(http.StatusOK, "上传文件成功")
+		inputStudentNumber := c.Query("studentNumber")
+		inputItsName := c.Query("itsName")
+
+		if inputItsName == "" && inputStudentNumber == "" {
+			c.String(http.StatusBadRequest, "没有传输需要检索的学号或姓名")
+			return
+		}
+		if inputItsName != "" {
+			err = StorageDB.UPDATEOne("SET havePicture = 1,picture = "+string(picture), "WHERE itsName = "+inputItsName)
+			if !CheckErr(err) {
+				c.String(http.StatusBadRequest, "找不到名为\""+inputItsName+"\"的学生")
+				return
+			}
+		} else if inputStudentNumber != "" {
+			err = StorageDB.UPDATEOne("SET havePicture = 1,picture = "+string(picture), "WHERE studentNumber = "+inputStudentNumber)
+			if !CheckErr(err) {
+				c.String(http.StatusBadRequest, "找不到学号为\""+inputStudentNumber+"\"的学生")
+				return
+			}
+		}
+
+		c.String(http.StatusOK, "上传图片成功")
 	})
 
 	router.GET("/storage/download/person", func(c *gin.Context) {
@@ -197,16 +215,9 @@ func (server *Server) Start() (err error) {
 		if inputItsName != "" {
 			example, err = StorageDB.QUERYOne("WHERE itsName =" + inputItsName)
 			CheckErr(err)
-		}
-		if inputStudentNumber != "" {
+		} else if inputStudentNumber != "" {
 			example, err = StorageDB.QUERYOne("WHERE studentNumber = " + inputStudentNumber)
 			CheckErr(err)
-		}
-
-		CheckErr(err)
-		if !CheckErr(err) {
-			c.String(http.StatusBadRequest, "找不到输入目标:")
-			return
 		}
 
 		//提取部门编号所对应的部门名称
