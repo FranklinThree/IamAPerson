@@ -35,19 +35,19 @@
         取得认人脸验证的实例
         json
         {
-			"error": 0
-			"msg":   "success"
-			"data": 
-            {
-				"picture": 
-				"truth":   
-				"A":       
-				"B":       
-				"C":       
-				"D":       
-			}
-			"redirect": ""
-		})
+		"error": 0
+		"msg":   "success"
+		"data": 
+           	{	
+			"picture": 
+			"truth":   
+			"A":       
+			"B":       
+			"C":       
+			"D":       
+		}
+		"redirect": ""
+	}
 
     POST /storage/upload/picture?itsName=...
     POST /storage/download/person?studentNumber=...
@@ -62,18 +62,18 @@
         
         json
         {
-			"error": 0
-			"msg":   "success"
-			"data": 
-            {
-				"UID":           
-				"itsName":       
-				"picture":       
-				"department":    
-				"studentNumber": 
-			}
-			"redirect": ""
-		})
-            
+		"error": 0
+		"msg":   "success"
+		"data": 
+            	{
+			"UID":           
+			"itsName":       
+			"picture":       
+			"department":    
+			"studentNumber": 
+		}
+		"redirect": ""
+	}
+     
         
     
