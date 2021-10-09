@@ -142,7 +142,7 @@ func (fdb *FaceDataBase) getExample(UID int, havePicture bool) (example Example,
 }
 
 // getRandomExample 取得随机实例
-func (fdb *FaceDataBase) getRandomExample(getPicture bool, WHEREExpression string) (example Example, err error) {
+func (fdb *FaceDataBase) getRandomExample(getPicture bool, WHEREExpression string, fixSize int) (example Example, err error) {
 
 	NO := rand.Intn(fdb.PersonCapacity)
 	if getPicture {
@@ -157,7 +157,7 @@ func (fdb *FaceDataBase) getRandomExample(getPicture bool, WHEREExpression strin
 		}()
 
 		//查找 顺序NO 所对应的人脸实例
-		for i := 0; i < NO; i++ {
+		for i := 0; i < NO+fixSize; i++ {
 			personQuery.Next()
 		}
 		err = personQuery.Scan(&example.itsName, &example.picture, &example.departmentNO, &example.studentNumber)
@@ -173,8 +173,10 @@ func (fdb *FaceDataBase) getRandomExample(getPicture bool, WHEREExpression strin
 			CheckErr(err)
 		}()
 
-		//查找 UID 所对应的人脸实例
-		personQuery.Next()
+		//查找 顺序NO 所对应的人脸实例
+		for i := 0; i < NO+fixSize; i++ {
+			personQuery.Next()
+		}
 		err = personQuery.Scan(&example.itsName, &example.departmentNO, &example.studentNumber)
 		CheckErr(err)
 
@@ -297,7 +299,7 @@ func (fdb *FaceDataBase) getSample() (sample Sample, err error) {
 
 	//取得图片的实例
 	//不安全的一个随机数
-	example, err := fdb.getRandomExample(true, "")
+	example, err := fdb.getRandomExample(true, "", 0)
 	trueDepartmentName, err := fdb.getDepartmentName(example.departmentNO)
 	CheckErr(err)
 
@@ -311,7 +313,7 @@ func (fdb *FaceDataBase) getSample() (sample Sample, err error) {
 		false,
 	}
 	for i := 0; i < 3; i++ {
-		examples[i], err = fdb.getRandomExample(false, "WHERE UID <> "+strconv.Itoa(example.UID))
+		examples[i], err = fdb.getRandomExample(false, "WHERE UID <> "+strconv.Itoa(example.UID), -1)
 		if examples[i].UID == example.UID {
 			i--
 			continue
@@ -349,8 +351,6 @@ func (fdb *FaceDataBase) getSample() (sample Sample, err error) {
 	case 3:
 		choices[3].sentence = strconv.Itoa(example.studentNumber)
 		choices[3].isRight = true
-	default:
-		return sample, errors.New("这怎么可能呢。")
 	}
 
 	//随机打乱这些选项
@@ -387,6 +387,10 @@ func (fdb *FaceDataBase) DELETEOne(WHEREExpression string) (err error) {
 // UPDATEOne 更新实例
 func (fdb *FaceDataBase) UPDATEOne(SETExpression string, WHEREExpression string) (err error) {
 	PersonUpdate, err := fdb.database.Prepare("UPDATE person " + SETExpression + " " + WHEREExpression)
+	defer func() {
+		err = PersonUpdate.Close()
+		CheckErr(err)
+	}()
 	_, err = PersonUpdate.Exec()
 	CheckErr(err)
 	return
@@ -402,7 +406,6 @@ func (fdb *FaceDataBase) QUERYOne(WHEREExpression string) (example Example, err 
 	QueryPerson.Next()
 	err = QueryPerson.Scan(&example.UID, &example.picture, &example.departmentNO, &example.studentNumber, &example.itsName)
 	CheckErr(err)
-
 	return
 }
 
@@ -416,6 +419,5 @@ func (fdb *FaceDataBase) QUERYOneNoPic(WHEREExpression string) (example Example,
 	QueryPerson.Next()
 	err = QueryPerson.Scan(&example.UID, &example.departmentNO, &example.studentNumber, &example.itsName)
 	CheckErr(err)
-
 	return
 }

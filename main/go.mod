@@ -3,7 +3,7 @@ module main
 go 1.17
 
 require (
-	github.com/FranklinThree/IamAPerson v0.5.8
+	github.com/FranklinThree/IamAPerson v0.6.0
 	github.com/gin-gonic/gin v1.7.4
 )
 

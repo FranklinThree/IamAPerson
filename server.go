@@ -105,7 +105,7 @@ func (server *Server) Start() (err error) {
 
 		pictureFile, err := c.FormFile("picture")
 		if !CheckErr(err) {
-			c.String(http.StatusBadRequest, "上传格式错误,step 1：找不到 picture")
+			c.String(http.StatusBadRequest, "上传格式错误,找不到 picture")
 			return
 		}
 
@@ -147,7 +147,42 @@ func (server *Server) Start() (err error) {
 		c.String(http.StatusOK, "上传文件成功")
 	})
 
-	//允许使用姓名或者学号方式查找
+	router.POST("/storage/upload/picture", func(c *gin.Context) {
+
+		pictureFile, err := c.FormFile("picture")
+		if !CheckErr(err) {
+			c.String(http.StatusBadRequest, "上传格式错误,找不到 picture")
+			return
+		}
+
+		//上传初始化
+		var readLength int
+		var example Example
+		buffer := make([]byte, 1024*1024)
+
+		pictureFileHeader, err := pictureFile.Open()
+		CheckErr(err)
+
+		defer func() {
+			err = pictureFileHeader.Close()
+			CheckErr(err)
+		}()
+
+		//读取图片数据
+		for {
+			readLength, _ = pictureFileHeader.Read(buffer)
+			if readLength == 0 {
+				break
+			}
+			example.picture = append(buffer[:readLength])
+		}
+
+		//储存实例
+		err = StorageDB.addExample(example)
+		CheckErr(err)
+		c.String(http.StatusOK, "上传文件成功")
+	})
+
 	router.GET("/storage/download/person", func(c *gin.Context) {
 
 		inputStudentNumber := c.Query("studentNumber")
@@ -156,10 +191,16 @@ func (server *Server) Start() (err error) {
 		if inputItsName == "" && inputStudentNumber == "" {
 			c.String(http.StatusBadRequest, "没有传输需要检索的学号或姓名")
 			return
-		} else if inputItsName != "" {
-			example, err = StorageDB.QUERYOne("itsName =" + inputItsName)
-			CheckErr(err)
+		}
 
+		//这里优先以姓名查询
+		if inputItsName != "" {
+			example, err = StorageDB.QUERYOne("WHERE itsName =" + inputItsName)
+			CheckErr(err)
+		}
+		if inputStudentNumber != "" {
+			example, err = StorageDB.QUERYOne("WHERE studentNumber = " + inputStudentNumber)
+			CheckErr(err)
 		}
 
 		CheckErr(err)
@@ -167,11 +208,14 @@ func (server *Server) Start() (err error) {
 			c.String(http.StatusBadRequest, "找不到输入目标:")
 			return
 		}
+
+		//提取部门编号所对应的部门名称
 		departmentName, err := StorageDB.getDepartmentName(example.departmentNO)
 		if !CheckErr(err) {
 			c.String(http.StatusInternalServerError, "服务器内部错误：找不到部门！")
 			return
 		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"error": 0,
 			"msg":   "success",
