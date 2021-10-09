@@ -38,10 +38,10 @@ func (fdb *FaceDataBase) StartByConfig(config Config) (err error) {
 	//初始化数据库
 	fdb.database, err = sql.Open(config.Map["driverName"],
 		config.Map["userName"]+":"+config.Map["userKey"]+
-		"@("+config.Map["ip"]+":"+config.Map["port"]+")/"+
-		config.Map["databaseName"]+
-		"?charset="+config.Map["charset"],
-		)
+			"@("+config.Map["ip"]+":"+config.Map["port"]+")/"+
+			config.Map["databaseName"]+
+			"?charset="+config.Map["charset"],
+	)
 
 	if !CheckErr(err) {
 		return errors.New("数据库初始化失败")
@@ -142,13 +142,13 @@ func (fdb *FaceDataBase) getExample(UID int, havePicture bool) (example Example,
 }
 
 // getRandomExample 取得随机实例
-func (fdb *FaceDataBase) getRandomExample(havePicture bool) (example Example, err error) {
+func (fdb *FaceDataBase) getRandomExample(getPicture bool, WHEREExpression string) (example Example, err error) {
 
 	NO := rand.Intn(fdb.PersonCapacity)
-	if havePicture {
+	if getPicture {
 
 		//查询人脸数据表picture
-		personQuery, err := fdb.database.Query("SELECT itsName,picture,departmentNO,studentNumber FROM person WHERE havePicture = TRUE")
+		personQuery, err := fdb.database.Query("SELECT itsName,picture,departmentNO,studentNumber FROM person " + WHEREExpression)
 		CheckErr(err)
 
 		defer func() {
@@ -165,7 +165,7 @@ func (fdb *FaceDataBase) getRandomExample(havePicture bool) (example Example, er
 
 	} else {
 		//查询人脸数据表picture
-		personQuery, err := fdb.database.Query("SELECT itsName,departmentNO,studentNumber FROM person")
+		personQuery, err := fdb.database.Query("SELECT itsName,departmentNO,studentNumber FROM person " + WHEREExpression)
 		CheckErr(err)
 
 		defer func() {
@@ -234,7 +234,7 @@ func (fdb *FaceDataBase) checkDepartment(departmentNO int) (err error) {
 //	checkHavePicture 检查此人是否有图片
 func (fdb *FaceDataBase) checkHavePicture(UID int) (have bool, err error) {
 	PersonQuery, err := fdb.database.Query("SELECT havePicture FROM person WHERE UID=" + strconv.Itoa(UID))
-	defer func(){
+	defer func() {
 		err = PersonQuery.Close()
 		CheckErr(err)
 	}()
@@ -297,7 +297,7 @@ func (fdb *FaceDataBase) getSample() (sample Sample, err error) {
 
 	//取得图片的实例
 	//不安全的一个随机数
-	example, err := fdb.getRandomExample(true)
+	example, err := fdb.getRandomExample(true, "")
 	trueDepartmentName, err := fdb.getDepartmentName(example.departmentNO)
 	CheckErr(err)
 
@@ -310,9 +310,9 @@ func (fdb *FaceDataBase) getSample() (sample Sample, err error) {
 		DepartmentNO,
 		false,
 	}
-	for i := 0; i < 4; i++ {
-		examples[i], err = fdb.getRandomExample(false)
-		if examples[i].UID == example.UID{
+	for i := 0; i < 3; i++ {
+		examples[i], err = fdb.getRandomExample(false, "WHERE UID <> "+strconv.Itoa(example.UID))
+		if examples[i].UID == example.UID {
 			i--
 			continue
 		}
@@ -324,12 +324,12 @@ func (fdb *FaceDataBase) getSample() (sample Sample, err error) {
 		false,
 	}
 	choices[2] = Choice{
-		strconv.Itoa(examples[2].UID),
+		strconv.Itoa(examples[1].UID),
 		UID,
 		false,
 	}
 	choices[3] = Choice{
-		strconv.Itoa(examples[3].studentNumber),
+		strconv.Itoa(examples[2].studentNumber),
 		StudentNumber,
 		false,
 	}
@@ -374,30 +374,48 @@ func (fdb *FaceDataBase) getSample() (sample Sample, err error) {
 	return sample, nil
 }
 
-// deleteExample 删除实例
-func (fdb *FaceDataBase) deleteExample(UID int) (err error) {
-	PersonDelete, err := fdb.database.Prepare("DELETE FROM person WHERE UID = ?")
-	_, err = PersonDelete.Exec(UID)
+//以下函数仅供person表操作单个example用
+
+// DELETEOne 删除实例
+func (fdb *FaceDataBase) DELETEOne(WHEREExpression string) (err error) {
+	PersonDelete, err := fdb.database.Prepare("DELETE FROM person " + WHEREExpression)
+	_, err = PersonDelete.Exec()
 	fdb.PersonCapacity--
 	return err
 }
 
-//// updateExample 更新实例
-//func (fdb *FaceDataBase) updateExample(UID int, target int, value string) (err error) {
-//	PersonUpdate, err := fdb.database.Prepare("UPDATE person SET " + TypetoString(target)+"" + " WHERE" + strconv.Itoa(UID))
-//	_, err = PersonUpdate.Exec()
-//	CheckErr(err)
-//	return
-//}
+// UPDATEOne 更新实例
+func (fdb *FaceDataBase) UPDATEOne(SETExpression string, WHEREExpression string) (err error) {
+	PersonUpdate, err := fdb.database.Prepare("UPDATE person " + SETExpression + " " + WHEREExpression)
+	_, err = PersonUpdate.Exec()
+	CheckErr(err)
+	return
+}
 
-//以下函数仅供person表操作单个example用
+// QUERYOne 查找实例
+func (fdb *FaceDataBase) QUERYOne(WHEREExpression string) (example Example, err error) {
+	QueryPerson, err := fdb.database.Query("SELECT UID,picture,departmentNO,studentNumber,itsName FROM person " + WHEREExpression)
+	defer func() {
+		err = QueryPerson.Close()
+		CheckErr(err)
+	}()
+	QueryPerson.Next()
+	err = QueryPerson.Scan(&example.UID, &example.picture, &example.departmentNO, &example.studentNumber, &example.itsName)
+	CheckErr(err)
 
-// QUERY 自定义查找
-//func (fdb *FaceDataBase) QUERY(expression string)(examples Example,err error){
-//	QueryPerson,err := fdb.database.Query(expression)
-//	QueryPerson.Next()
-//	err = QueryPerson.Scan()
-//	CheckErr(err)
-//
-//
-//}
+	return
+}
+
+// QUERYOneNoPic 查找实例，无需传输图片
+func (fdb *FaceDataBase) QUERYOneNoPic(WHEREExpression string) (example Example, err error) {
+	QueryPerson, err := fdb.database.Query("SELECT UID,departmentNO,studentNumber,itsName FROM person " + WHEREExpression)
+	defer func() {
+		err = QueryPerson.Close()
+		CheckErr(err)
+	}()
+	QueryPerson.Next()
+	err = QueryPerson.Scan(&example.UID, &example.departmentNO, &example.studentNumber, &example.itsName)
+	CheckErr(err)
+
+	return
+}

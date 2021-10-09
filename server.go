@@ -12,10 +12,9 @@ import (
 )
 
 type Server struct {
-	CheckConfig Config
+	CheckConfig   Config
 	StorageConfig Config
-	NetConfig Config
-
+	NetConfig     Config
 }
 
 func (server *Server) Start() (err error) {
@@ -24,16 +23,16 @@ func (server *Server) Start() (err error) {
 	var StorageDB FaceDataBase
 
 	err = StorageDB.StartByConfig(server.StorageConfig)
-	if ! CheckErr(err){
-		return errors.New("Storage数据库初始化错误，请检查配置文件："+server.StorageConfig.Path)
+	if !CheckErr(err) {
+		return errors.New("Storage数据库初始化错误，请检查配置文件：" + server.StorageConfig.Path)
 	}
 
 	err = CheckDB.StartByConfig(server.CheckConfig)
-	if ! CheckErr(err){
-		return errors.New("Check数据库初始化错误，请检查配置文件："+server.CheckConfig.Path)
+	if !CheckErr(err) {
+		return errors.New("Check数据库初始化错误，请检查配置文件：" + server.CheckConfig.Path)
 
 	}
-	defer func(){
+	defer func() {
 		err = CheckDB.database.Close()
 		CheckErr(err)
 	}()
@@ -148,20 +147,29 @@ func (server *Server) Start() (err error) {
 		c.String(http.StatusOK, "上传文件成功")
 	})
 
+	//允许使用姓名或者学号方式查找
 	router.GET("/storage/download/person", func(c *gin.Context) {
 
+		inputStudentNumber := c.Query("studentNumber")
+		inputItsName := c.Query("itsName")
+		var example Example
+		if inputItsName == "" && inputStudentNumber == "" {
+			c.String(http.StatusBadRequest, "没有传输需要检索的学号或姓名")
+			return
+		} else if inputItsName != "" {
+			example, err = StorageDB.QUERYOne("itsName =" + inputItsName)
+			CheckErr(err)
 
-		itsName := c.Query("itsName")
-		uid,err := StorageDB.getUID(itsName)
+		}
+
 		CheckErr(err)
-		example, err := StorageDB.getExample(uid, true)
 		if !CheckErr(err) {
-			c.String(http.StatusBadRequest,"找不到UID目标:" + strconv.Itoa(uid))
+			c.String(http.StatusBadRequest, "找不到输入目标:")
 			return
 		}
 		departmentName, err := StorageDB.getDepartmentName(example.departmentNO)
-		if ! CheckErr(err){
-			c.String(http.StatusInternalServerError,"服务器内部错误：找不到部门！")
+		if !CheckErr(err) {
+			c.String(http.StatusInternalServerError, "服务器内部错误：找不到部门！")
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
@@ -178,8 +186,8 @@ func (server *Server) Start() (err error) {
 		})
 		c.String(http.StatusOK, "拉取信息成功")
 	})
-	err = router.Run(server.NetConfig.Map["ip"]+":"+server.NetConfig.Map["port"])
-	if ! CheckErr(err) {
+	err = router.Run(server.NetConfig.Map["ip"] + ":" + server.NetConfig.Map["port"])
+	if !CheckErr(err) {
 		return errors.New("服务器启动异常！")
 	}
 	return
